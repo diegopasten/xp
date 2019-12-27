@@ -1,11 +1,14 @@
 package com.enonic.xp.repo.impl.elasticsearch.storage;
 
+import java.util.List;
+
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 
 import com.google.common.collect.Multimap;
 
+import com.enonic.xp.repo.impl.branch.storage.BranchIndexPath;
 import com.enonic.xp.repo.impl.index.IndexValueNormalizer;
 import com.enonic.xp.repo.impl.storage.StoreRequest;
 import com.enonic.xp.repository.IndexException;
@@ -22,7 +25,14 @@ class XContentBuilderFactory
 
             for ( final String key : values.keySet() )
             {
-                addField( builder, key, values.get( key ) );
+                if ( BranchIndexPath.JOIN_FIELD.getPath().equals( key ) )
+                {
+                    addField( builder, key, ( (List) values.get( key ) ).get( 0 ) );
+                }
+                else
+                {
+                    addField( builder, key, values.get( key ) );
+                }
             }
 
             endBuilder( builder );

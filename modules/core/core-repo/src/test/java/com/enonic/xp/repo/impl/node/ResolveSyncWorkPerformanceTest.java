@@ -54,41 +54,16 @@ public class ResolveSyncWorkPerformanceTest
     }
 
     @Benchmark
-    public void inMemory( BenchmarkState state, Blackhole bh )
+    public void join( BenchmarkState state, Blackhole bh )
     {
-        bh.consume( ResolveSyncWorkPerformanceBootstrap.CONTEXT_DRAFT.callWith( () -> run( state.command, TestQueryType.IN_MEMORY ) ) );
-    }
-
-    @Benchmark
-    public void composite( BenchmarkState state, Blackhole bh )
-    {
-        bh.consume( ResolveSyncWorkPerformanceBootstrap.CONTEXT_DRAFT.callWith( () -> run( state.command, TestQueryType.COMPOSITE ) ) );
-    }
-
-    @Benchmark
-    public void rare( BenchmarkState state, Blackhole bh )
-    {
-        bh.consume( ResolveSyncWorkPerformanceBootstrap.CONTEXT_DRAFT.callWith( () -> run( state.command, TestQueryType.RARE ) ) );
-    }
-
-    @Benchmark
-    public void sortedTerms( BenchmarkState state, Blackhole bh )
-    {
-        bh.consume( ResolveSyncWorkPerformanceBootstrap.CONTEXT_DRAFT.callWith( () -> run( state.command, TestQueryType.SORTED_TERMS ) ) );
-    }
-
-    @Benchmark
-    public void branches( BenchmarkState state, Blackhole bh )
-    {
-        bh.consume(
-            ResolveSyncWorkPerformanceBootstrap.CONTEXT_DRAFT.callWith( () -> run( state.command, TestQueryType.BRANCHES_IN_VERSIONS ) ) );
+        bh.consume( ResolveSyncWorkPerformanceBootstrap.CONTEXT_DRAFT.callWith( () -> run( state.command, TestQueryType.JOIN ) ) );
     }
 
     int run( ResolveSyncWorkCommand.Builder command, TestQueryType type )
     {
         final ResolveSyncWorkResult resolvedNodes = command.testQueryType( type ).build().execute();
 
-//        Assertions.assertEquals(22000, resolvedNodes.getSize() );
+//        Assertions.assertEquals( 22001, resolvedNodes.getSize() );
 
         return resolvedNodes.getSize();
     }

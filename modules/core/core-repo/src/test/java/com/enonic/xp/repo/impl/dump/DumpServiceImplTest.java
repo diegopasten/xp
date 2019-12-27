@@ -1054,8 +1054,7 @@ public class DumpServiceImplTest
     {
         IndexNameResolver.resolveSearchIndexNames( SystemConstants.SYSTEM_REPO.getId(), SystemConstants.SYSTEM_REPO.getBranches() ).
             forEach( this.indexServiceInternal::deleteIndices );
-        this.indexServiceInternal.deleteIndices( IndexNameResolver.resolveBranchIndexName( SystemConstants.SYSTEM_REPO.getId() ) );
-        this.indexServiceInternal.deleteIndices( IndexNameResolver.resolveVersionIndexName( SystemConstants.SYSTEM_REPO.getId() ) );
+        this.indexServiceInternal.deleteIndices( IndexNameResolver.resolveStorageIndexName( SystemConstants.SYSTEM_REPO.getId() ) );
         this.indexServiceInternal.deleteIndices( IndexNameResolver.resolveCommitIndexName( SystemConstants.SYSTEM_REPO.getId() ) );
 
     }

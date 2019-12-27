@@ -53,11 +53,7 @@ import com.enonic.xp.repo.impl.repository.RepositoryEntryServiceImpl;
 import com.enonic.xp.repo.impl.repository.RepositoryServiceImpl;
 import com.enonic.xp.repo.impl.repository.SystemRepoInitializer;
 import com.enonic.xp.repo.impl.search.NodeSearchServiceImpl;
-import com.enonic.xp.repo.impl.search.NodeVersionBranchesInVersionsSearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffCompositeSearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffInMemorySearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffRareSearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffSortedTermsSearcher;
+import com.enonic.xp.repo.impl.search.NodeVersionJoinSearcher;
 import com.enonic.xp.repo.impl.storage.IndexDataServiceImpl;
 import com.enonic.xp.repo.impl.storage.NodeStorageServiceImpl;
 import com.enonic.xp.repo.impl.version.VersionServiceImpl;
@@ -131,74 +127,16 @@ public class ResolveSyncWorkPerformanceBootstrap
         client.close();
     }
 
-    void setupServices()
+    public static void boostrap()
+        throws Exception
     {
-        final BlobStore blobStore = CachedBlobStore.create().
-            blobStore( new FileBlobStore( new File( "C:\\es\\elasticsearch-7.5.1\\data\\blobs" ) ) ).
-            build();
-
-        this.binaryService = new BinaryServiceImpl();
-        this.binaryService.setBlobStore( blobStore );
-
-        final StorageDaoImpl storageDao = new StorageDaoImpl();
-        storageDao.setClient( client );
-
-        final SearchDaoImpl searchDao = new SearchDaoImpl();
-        searchDao.setClient( client );
-
-        this.indexServiceInternal = new IndexServiceInternalImpl();
-        this.indexServiceInternal.setClient( client );
-
-        // Branch and version-services
-
-        this.branchService = new BranchServiceImpl();
-        this.branchService.setStorageDao( storageDao );
-        this.branchService.setSearchDao( searchDao );
-
-        this.versionService = new VersionServiceImpl();
-        this.versionService.setStorageDao( storageDao );
-
-        final CommitServiceImpl commitService = new CommitServiceImpl();
-        commitService.setStorageDao( storageDao );
-
-        // Storage-service
-        final NodeVersionServiceImpl nodeDao = new NodeVersionServiceImpl();
-        nodeDao.setBlobStore( blobStore );
-
-        this.indexedDataService = new IndexDataServiceImpl();
-        this.indexedDataService.setStorageDao( storageDao );
-
-        this.storageService = new NodeStorageServiceImpl();
-        this.storageService.setVersionService( this.versionService );
-        this.storageService.setBranchService( this.branchService );
-        this.storageService.setCommitService( commitService );
-        this.storageService.setNodeVersionService( nodeDao );
-        this.storageService.setIndexDataService( this.indexedDataService );
-
-        // Search-service
-
-        this.searchService = new NodeSearchServiceImpl();
-        this.searchService.setSearchDao( searchDao );
-        this.searchService.setNodeVersionDiffRareSearcher( new NodeVersionDiffRareSearcher( searchDao ) );
-        this.searchService.setNodeVersionDiffSortedTermsSearcher( new NodeVersionDiffSortedTermsSearcher( searchDao ) );
-        this.searchService.setNodeVersionDiffCompositeSearcher( new NodeVersionDiffCompositeSearcher( searchDao ) );
-        this.searchService.setNodeVersionDiffInMemorySearcher( new NodeVersionDiffInMemorySearcher( searchDao ) );
-        this.searchService.setNodeVersionBranchesInVersionsSearcher( new NodeVersionBranchesInVersionsSearcher( searchDao ) );
-
-        IndexServiceImpl indexService = new IndexServiceImpl();
-        indexService.setIndexDataService( indexedDataService );
-        indexService.setIndexServiceInternal( indexServiceInternal );
-        indexService.setNodeSearchService( this.searchService );
-        indexService.setRepositoryEntryService( this.repositoryEntryService );
-
-        setUpRepositoryServices();
-
-        SystemRepoInitializer.create().
-            setIndexServiceInternal( indexServiceInternal ).
-            setRepositoryService( repositoryService ).
-            setNodeStorageService( storageService ).
-            build().
-            initialize();
+        final ResolveSyncWorkPerformanceBootstrap beforeTestSetup = new ResolveSyncWorkPerformanceBootstrap();
+        beforeTestSetup.startClient();
+        beforeTestSetup.deleteAllIndices();
+        beforeTestSetup.setupServices();
+        beforeTestSetup.initTestData();
+        beforeTestSetup.publish( NODE_SIZE );
+        beforeTestSetup.stopClient();
     }
 
     private void setUpRepositoryServices()
@@ -460,24 +398,77 @@ public class ResolveSyncWorkPerformanceBootstrap
         } );
     }
 
-    public static void boostrap()
-        throws Exception
+    void setupServices()
     {
-        final ResolveSyncWorkPerformanceBootstrap beforeTestSetup = new ResolveSyncWorkPerformanceBootstrap();
-        beforeTestSetup.startClient();
-//        beforeTestSetup.deleteAllIndices();
-        beforeTestSetup.setupServices();
-        beforeTestSetup.initTestData();
-//         beforeTestSetup.publish( NODE_SIZE);
-        beforeTestSetup.stopClient();
+        final BlobStore blobStore = CachedBlobStore.create().
+            blobStore( new FileBlobStore( new File( "C:\\es\\elasticsearch-7.5.1\\data\\blobs" ) ) ).
+            build();
+
+        this.binaryService = new BinaryServiceImpl();
+        this.binaryService.setBlobStore( blobStore );
+
+        final StorageDaoImpl storageDao = new StorageDaoImpl();
+        storageDao.setClient( client );
+
+        final SearchDaoImpl searchDao = new SearchDaoImpl();
+        searchDao.setClient( client );
+
+        this.indexServiceInternal = new IndexServiceInternalImpl();
+        this.indexServiceInternal.setClient( client );
+
+        // Branch and version-services
+
+        this.branchService = new BranchServiceImpl();
+        this.branchService.setStorageDao( storageDao );
+        this.branchService.setSearchDao( searchDao );
+
+        this.versionService = new VersionServiceImpl();
+        this.versionService.setStorageDao( storageDao );
+
+        final CommitServiceImpl commitService = new CommitServiceImpl();
+        commitService.setStorageDao( storageDao );
+
+        // Storage-service
+        final NodeVersionServiceImpl nodeDao = new NodeVersionServiceImpl();
+        nodeDao.setBlobStore( blobStore );
+
+        this.indexedDataService = new IndexDataServiceImpl();
+        this.indexedDataService.setStorageDao( storageDao );
+
+        this.storageService = new NodeStorageServiceImpl();
+        this.storageService.setVersionService( this.versionService );
+        this.storageService.setBranchService( this.branchService );
+        this.storageService.setCommitService( commitService );
+        this.storageService.setNodeVersionService( nodeDao );
+        this.storageService.setIndexDataService( this.indexedDataService );
+
+        // Search-service
+
+        this.searchService = new NodeSearchServiceImpl();
+        this.searchService.setSearchDao( searchDao );
+        this.searchService.setNodeVersionJoinSearcher( new NodeVersionJoinSearcher( searchDao ) );
+
+        IndexServiceImpl indexService = new IndexServiceImpl();
+        indexService.setIndexDataService( indexedDataService );
+        indexService.setIndexServiceInternal( indexServiceInternal );
+        indexService.setNodeSearchService( this.searchService );
+        indexService.setRepositoryEntryService( this.repositoryEntryService );
+
+        setUpRepositoryServices();
+
+        SystemRepoInitializer.create().
+            setIndexServiceInternal( indexServiceInternal ).
+            setRepositoryService( repositoryService ).
+            setNodeStorageService( storageService ).
+            build().
+            initialize();
     }
 
     private AcknowledgedResponse deleteAllIndices()
     {
         try
         {
-            return client.indices().delete( new DeleteIndexRequest( "search-*", "branch-*", "version-*", "commit-*" ),
-                                            RequestOptions.DEFAULT );
+            return client.indices().delete( new DeleteIndexRequest( "search-*", "storage-*", "commit-*" ), RequestOptions.DEFAULT );
         }
         catch ( IOException e )
         {

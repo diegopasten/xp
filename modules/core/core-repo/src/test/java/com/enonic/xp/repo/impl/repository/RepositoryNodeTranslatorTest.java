@@ -34,11 +34,7 @@ public class RepositoryNodeTranslatorTest
             id( RepositoryId.from( "myrepoid" ) ).
             settings( RepositorySettings.create().
                 indexDefinitions( IndexDefinitions.create().
-                    add( IndexType.VERSION, IndexDefinition.create().
-                        mapping( IndexMapping.from( indexMapping ) ).
-                        settings( IndexSettings.from( indexSettings ) ).
-                        build() ).
-                    add( IndexType.BRANCH, IndexDefinition.create().
+                    add( IndexType.STORAGE, IndexDefinition.create().
                         mapping( IndexMapping.from( indexMapping ) ).
                         settings( IndexSettings.from( indexSettings ) ).
                         build() ).

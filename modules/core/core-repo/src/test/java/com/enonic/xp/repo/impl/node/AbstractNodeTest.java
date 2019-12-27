@@ -56,11 +56,7 @@ import com.enonic.xp.repo.impl.repository.RepositoryEntryServiceImpl;
 import com.enonic.xp.repo.impl.repository.RepositoryServiceImpl;
 import com.enonic.xp.repo.impl.repository.SystemRepoInitializer;
 import com.enonic.xp.repo.impl.search.NodeSearchServiceImpl;
-import com.enonic.xp.repo.impl.search.NodeVersionBranchesInVersionsSearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffCompositeSearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffInMemorySearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffRareSearcher;
-import com.enonic.xp.repo.impl.search.NodeVersionDiffSortedTermsSearcher;
+import com.enonic.xp.repo.impl.search.NodeVersionJoinSearcher;
 import com.enonic.xp.repo.impl.storage.IndexDataServiceImpl;
 import com.enonic.xp.repo.impl.storage.NodeStorageServiceImpl;
 import com.enonic.xp.repo.impl.version.VersionServiceImpl;
@@ -208,11 +204,7 @@ public abstract class AbstractNodeTest
 
         this.searchService = new NodeSearchServiceImpl();
         this.searchService.setSearchDao( this.searchDao );
-        this.searchService.setNodeVersionDiffRareSearcher( new NodeVersionDiffRareSearcher( this.searchDao ) );
-        this.searchService.setNodeVersionDiffSortedTermsSearcher( new NodeVersionDiffSortedTermsSearcher( this.searchDao ) );
-        this.searchService.setNodeVersionDiffCompositeSearcher( new NodeVersionDiffCompositeSearcher( this.searchDao ) );
-        this.searchService.setNodeVersionDiffInMemorySearcher( new NodeVersionDiffInMemorySearcher( this.searchDao ) );
-        this.searchService.setNodeVersionBranchesInVersionsSearcher( new NodeVersionBranchesInVersionsSearcher( this.searchDao ) );
+        this.searchService.setNodeVersionJoinSearcher( new NodeVersionJoinSearcher( this.searchDao ) );
 
         this.snapshotService = new SnapshotServiceImpl();
         this.snapshotService.setClient( client );
@@ -487,17 +479,6 @@ public abstract class AbstractNodeTest
     protected void printSearchIndex( final RepositoryId repositoryId, final Branch branch )
     {
         printAllIndexContent( IndexNameResolver.resolveSearchIndexName( repositoryId, branch ), branch.getValue() );
-    }
-
-    protected void printBranchIndex()
-    {
-        printAllIndexContent( IndexNameResolver.resolveBranchIndexName( ContextAccessor.current().getRepositoryId() ),
-                              IndexType.BRANCH.getName() );
-    }
-
-    protected void printVersionIndex()
-    {
-        printAllIndexContent( IndexNameResolver.resolveVersionIndexName( CTX_DEFAULT.getRepositoryId() ), IndexType.VERSION.getName() );
     }
 
     protected void printCommitIndex()

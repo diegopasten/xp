@@ -12,7 +12,6 @@ import com.enonic.xp.repo.impl.branch.search.NodeBranchQuery;
 import com.enonic.xp.repo.impl.branch.storage.BranchIndexPath;
 import com.enonic.xp.repo.impl.commit.storage.CommitIndexPath;
 import com.enonic.xp.repo.impl.search.result.SearchResult;
-import com.enonic.xp.repo.impl.version.TestQueryType;
 import com.enonic.xp.repo.impl.version.VersionIndexPath;
 import com.enonic.xp.repo.impl.version.search.NodeVersionDiffQuery;
 
@@ -35,15 +34,8 @@ public class NodeSearchServiceImpl
 
     private SearchDao searchDao;
 
-    private NodeVersionDiffRareSearcher nodeVersionDiffRareSearcher;
 
-    private NodeVersionDiffSortedTermsSearcher nodeVersionDiffSortedTermsSearcher;
-
-    private NodeVersionDiffCompositeSearcher nodeVersionDiffCompositeSearcher;
-
-    private NodeVersionDiffInMemorySearcher nodeVersionDiffInMemorySearcher;
-
-    private NodeVersionBranchesInVersionsSearcher nodeVersionBranchesInVersionsSearcher;
+    private NodeVersionJoinSearcher nodeVersionJoinSearcher;
 
     @Override
     public SearchResult query( final NodeQuery query, final SearchSource source )
@@ -108,11 +100,11 @@ public class NodeSearchServiceImpl
     public SearchResult query( final NodeVersionDiffQuery query, final SearchSource source )
     {
 
-        if ( TestQueryType.RARE == query.getTestQueryType() )
-        {
-            return nodeVersionDiffRareSearcher.find( query, source );
-        }
-        else if ( TestQueryType.SORTED_TERMS == query.getTestQueryType() )
+//        if ( TestQueryType.JOIN == query.getTestQueryType() )
+//        {
+        return nodeVersionJoinSearcher.find( query, source );
+//        }
+        /*else if ( TestQueryType.SORTED_TERMS == query.getTestQueryType() )
         {
             return nodeVersionDiffSortedTermsSearcher.find( query, source );
         }
@@ -127,10 +119,7 @@ public class NodeSearchServiceImpl
         else if ( TestQueryType.BRANCHES_IN_VERSIONS == query.getTestQueryType() )
         {
             return nodeVersionBranchesInVersionsSearcher.find( query, source );
-        }
-
-        throw new RuntimeException( "ahtung!!!!!!!" );
-
+        }*/
     }
 
     @Reference
@@ -140,33 +129,8 @@ public class NodeSearchServiceImpl
     }
 
     @Reference
-    public void setNodeVersionDiffRareSearcher( final NodeVersionDiffRareSearcher nodeVersionDiffRareSearcher )
+    public void setNodeVersionJoinSearcher( final NodeVersionJoinSearcher nodeVersionJoinSearcher )
     {
-        this.nodeVersionDiffRareSearcher = nodeVersionDiffRareSearcher;
-    }
-
-    @Reference
-    public void setNodeVersionDiffSortedTermsSearcher( final NodeVersionDiffSortedTermsSearcher nodeVersionDiffSortedTermsSearcher )
-    {
-        this.nodeVersionDiffSortedTermsSearcher = nodeVersionDiffSortedTermsSearcher;
-    }
-
-    @Reference
-    public void setNodeVersionDiffCompositeSearcher( final NodeVersionDiffCompositeSearcher nodeVersionDiffCompositeSearcher )
-    {
-        this.nodeVersionDiffCompositeSearcher = nodeVersionDiffCompositeSearcher;
-    }
-
-    @Reference
-    public void setNodeVersionDiffInMemorySearcher( final NodeVersionDiffInMemorySearcher nodeVersionDiffInMemorySearcher )
-    {
-        this.nodeVersionDiffInMemorySearcher = nodeVersionDiffInMemorySearcher;
-    }
-
-    @Reference
-    public void setNodeVersionBranchesInVersionsSearcher(
-        final NodeVersionBranchesInVersionsSearcher nodeVersionBranchesInVersionsSearcher )
-    {
-        this.nodeVersionBranchesInVersionsSearcher = nodeVersionBranchesInVersionsSearcher;
+        this.nodeVersionJoinSearcher = nodeVersionJoinSearcher;
     }
 }

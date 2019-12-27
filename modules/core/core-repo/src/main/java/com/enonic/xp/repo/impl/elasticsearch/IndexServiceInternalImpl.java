@@ -232,7 +232,7 @@ public class IndexServiceInternalImpl
 
         final String indexName = IndexType.SEARCH == indexType
             ? IndexNameResolver.resolveSearchIndexName( repositoryId, ContextAccessor.current().getBranch() )
-            : IndexNameResolver.resolveStorageIndexName( repositoryId, indexType );
+            : IndexNameResolver.resolveStorageIndexName( repositoryId );
 
         if ( indexName == null )
         {
@@ -273,7 +273,7 @@ public class IndexServiceInternalImpl
 
         final String indexName = IndexType.SEARCH == indexType
             ? IndexNameResolver.resolveSearchIndexName( repositoryId, branch )
-            : IndexNameResolver.resolveStorageIndexName( repositoryId, indexType );
+            : IndexNameResolver.resolveStorageIndexName( repositoryId );
 
         if ( indexName == null )
         {

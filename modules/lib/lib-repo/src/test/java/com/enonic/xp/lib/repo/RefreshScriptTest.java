@@ -75,7 +75,7 @@ public class RefreshScriptTest
         throws Exception
     {
         runFunction( "/test/refresh-test.js", "refreshVersion" );
-        verify( this.nodeService, times( 1 ) ).refresh( RefreshMode.VERSION );
+        verify( this.nodeService, times( 1 ) ).refresh( RefreshMode.STORAGE );
     }
 
     @Test
@@ -83,7 +83,7 @@ public class RefreshScriptTest
         throws Exception
     {
         runFunction( "/test/refresh-test.js", "refreshBranch" );
-        verify( this.nodeService, times( 1 ) ).refresh( RefreshMode.BRANCH );
+        verify( this.nodeService, times( 1 ) ).refresh( RefreshMode.STORAGE );
     }
 
     @Test

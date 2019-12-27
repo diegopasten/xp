@@ -5,10 +5,7 @@ import com.google.common.annotations.Beta;
 @Beta
 public enum IndexType
 {
-    SEARCH( true ),
-    VERSION( false ),
-    BRANCH( false ),
-    COMMIT( false );
+    SEARCH( true ), STORAGE( false ), COMMIT( false );
 
     private final boolean dynamicTypes;
 
