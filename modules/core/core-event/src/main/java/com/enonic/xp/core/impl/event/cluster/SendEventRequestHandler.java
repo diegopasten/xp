@@ -1,55 +1,62 @@
 package com.enonic.xp.core.impl.event.cluster;
 
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportChannel;
-import org.elasticsearch.transport.TransportRequestHandler;
-import org.elasticsearch.transport.TransportService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.ITopic;
+import com.hazelcast.core.Message;
+import com.hazelcast.core.MessageListener;
+
 import com.enonic.xp.event.Event;
 import com.enonic.xp.event.EventPublisher;
 
-@Component(immediate = true, service = TransportRequestHandler.class)
+@Component(immediate = true)
 public final class SendEventRequestHandler
-    extends TransportRequestHandler<SendEventRequest>
+    implements MessageListener<Event>
 {
-    private TransportService transportService;
+    private HazelcastInstance hazelcastInstance;
 
     private EventPublisher eventPublisher;
+
+    private ITopic<Event> topic;
+
+    private String registrationId;
 
     @Activate
     public void activate()
     {
-        this.transportService.registerRequestHandler( ClusterEventSender.ACTION, SendEventRequest.class, ThreadPool.Names.MANAGEMENT,
-                                                      this );
+        topic = hazelcastInstance.getTopic( ClusterEventSender.ACTION );
+        registrationId = topic.addMessageListener( this );
     }
 
     @Deactivate
     public void deactivate()
     {
-        this.transportService.removeHandler( ClusterEventSender.ACTION );
+        topic.removeMessageListener( registrationId );
     }
 
     @Override
-    public void messageReceived( final SendEventRequest request, final TransportChannel channel )
+    public void onMessage( final Message<Event> message )
     {
-        final Event receivedEvent = request.getEvent();
-        final Event forwardedEvent = Event.create( receivedEvent ).distributed( false ).localOrigin( false ).build();
+        final Event forwardedEvent = Event.create( message.getMessageObject() ).
+            distributed( false ).
+            localOrigin( false ).
+            build();
         this.eventPublisher.publish( forwardedEvent );
-    }
-
-    @Reference
-    public void setTransportService( final TransportService transportService )
-    {
-        this.transportService = transportService;
     }
 
     @Reference
     public void setEventPublisher( final EventPublisher eventPublisher )
     {
         this.eventPublisher = eventPublisher;
+    }
+
+    @Reference
+    public void setHazelcastInstance( final HazelcastInstance hazelcastInstance )
+    {
+        this.hazelcastInstance = hazelcastInstance;
     }
 }

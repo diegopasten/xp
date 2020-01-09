@@ -7,8 +7,6 @@ import org.osgi.framework.ServiceRegistration;
 
 public class AbstractSessionDataStoreFactoryActivator
 {
-    public static final String WEB_SESSION_CACHE = "com.enonic.xp.webSessionCache";
-
     private final BundleContext bundleContext;
 
     private ServiceRegistration<SessionDataStoreFactory> sessionDataStoreFactoryReg;

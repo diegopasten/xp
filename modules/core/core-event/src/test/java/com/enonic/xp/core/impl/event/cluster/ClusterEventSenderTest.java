@@ -1,92 +1,81 @@
 package com.enonic.xp.core.impl.event.cluster;
 
-import org.elasticsearch.cluster.ClusterService;
-import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportResponseHandler;
-import org.elasticsearch.transport.TransportService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.UnmodifiableIterator;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+
+import com.hazelcast.config.Config;
+import com.hazelcast.core.Hazelcast;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.ITopic;
+import com.hazelcast.core.Message;
 
 import com.enonic.xp.event.Event;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class ClusterEventSenderTest
+@Tag("hazelcast")
+class ClusterEventSenderTest
 {
     private ClusterEventSender clusterEventSender;
 
-    private TransportService transportService;
+    private HazelcastInstance remoteHz;
 
-    private DiscoveryNode localNode;
+    private HazelcastInstance localHz;
 
-    private DiscoveryNode node1;
-
-    private DiscoveryNode node2;
+    private ITopic<Event> topic;
 
     @BeforeEach
-    public void setUp()
+    void setUp()
     {
-        //Mocks the Elasticsearch nodes
-        this.localNode = Mockito.mock( DiscoveryNode.class );
-        this.node1 = Mockito.mock( DiscoveryNode.class );
-        this.node2 = Mockito.mock( DiscoveryNode.class );
-        final DiscoveryNodes discoveryNodes = Mockito.mock( DiscoveryNodes.class );
-        final ImmutableList<DiscoveryNode> nodeImmutableList =
-            ImmutableList.copyOf( new DiscoveryNode[]{this.localNode, this.node1, this.node2} );
-        final UnmodifiableIterator<DiscoveryNode> discoveryNodeUnmodifiableIterator = nodeImmutableList.iterator();
-        Mockito.when( discoveryNodes.iterator() ).thenReturn( discoveryNodeUnmodifiableIterator );
+        Config cfg = new Config();
 
-        //Mocks Elasticsearch cluster service
-        final ClusterState clusterState = Mockito.mock( ClusterState.class );
-        final ClusterService clusterService = Mockito.mock( ClusterService.class );
-        Mockito.when( clusterService.localNode() ).thenReturn( this.localNode );
-        Mockito.when( clusterService.state() ).thenReturn( clusterState );
-        Mockito.when( clusterState.nodes() ).thenReturn( discoveryNodes );
+        localHz = Hazelcast.newHazelcastInstance( cfg );
+        topic = localHz.getTopic( ClusterEventSender.ACTION );
 
-        //Mocks Elasticsearch transport service
-        this.transportService = Mockito.mock( TransportService.class );
+        remoteHz = Hazelcast.newHazelcastInstance( cfg );
 
-        this.clusterEventSender = new ClusterEventSender();
-        this.clusterEventSender.setClusterService( clusterService );
-        this.clusterEventSender.setTransportService( this.transportService );
+        clusterEventSender = new ClusterEventSender();
+        clusterEventSender.setHazelcastInstance( remoteHz );
+        clusterEventSender.activate();
+    }
 
+    @AfterEach
+    void tearDown()
+    {
+        remoteHz.shutdown();
+        localHz.shutdown();
     }
 
     @Test
-    public void onEvent()
+    void onEvent()
+        throws Exception
     {
+        CompletableFuture<Message<Event>> received = new CompletableFuture<>();
         final Event event = Event.create( "aaa" ).distributed( true ).build();
+
+        topic.addMessageListener( received::complete );
         this.clusterEventSender.onEvent( event );
 
-        Mockito.verify( this.transportService, Mockito.times( 0 ) ).
-            sendRequest( Mockito.eq( this.localNode ), Mockito.eq( "xp/event" ), Mockito.any( TransportRequest.class ),
-                         Mockito.any( TransportResponseHandler.class ) );
-        Mockito.verify( this.transportService ).
-            sendRequest( Mockito.eq( this.node1 ), Mockito.eq( "xp/event" ), Mockito.any( TransportRequest.class ),
-                         Mockito.any( TransportResponseHandler.class ) );
-        Mockito.verify( this.transportService ).
-            sendRequest( Mockito.eq( this.node2 ), Mockito.eq( "xp/event" ), Mockito.any( TransportRequest.class ),
-                         Mockito.any( TransportResponseHandler.class ) );
-        Mockito.verify( this.transportService, Mockito.times( 2 ) ).
-            sendRequest( Mockito.any( DiscoveryNode.class ), Mockito.anyString(), Mockito.any( TransportRequest.class ),
-                         Mockito.any( TransportResponseHandler.class ) );
+        assertEquals( received.get( 10, TimeUnit.SECONDS ).getMessageObject().getType(), "aaa" );
     }
 
 
     @Test
-    public void onNonDistributableEvent()
+    void onNonDistributableEvent()
     {
-        final Event event = Event.create( "aaa" ).build();
-        this.clusterEventSender.onEvent( event );
+        CompletableFuture<Message<Event>> received = new CompletableFuture<>();
 
-        Mockito.verify( this.transportService, Mockito.times( 0 ) ).
-            sendRequest( Mockito.any( DiscoveryNode.class ), Mockito.anyString(), Mockito.any( TransportRequest.class ),
-                         Mockito.any( TransportResponseHandler.class ) );
+        final Event event = Event.create( "aaa" ).build();
+
+        topic.addMessageListener( received::complete );
+        this.clusterEventSender.onEvent( event );
+        assertThrows( TimeoutException.class, () -> received.get( 10, TimeUnit.SECONDS ) );
     }
 }
