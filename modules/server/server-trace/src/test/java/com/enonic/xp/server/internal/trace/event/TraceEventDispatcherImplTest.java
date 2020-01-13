@@ -1,5 +1,7 @@
 package com.enonic.xp.server.internal.trace.event;
 
+import java.util.concurrent.Phaser;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,40 +10,51 @@ import org.mockito.Mockito;
 import com.enonic.xp.trace.TraceEvent;
 import com.enonic.xp.trace.TraceListener;
 
-public class TraceEventDispatcherImplTest
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+class TraceEventDispatcherImplTest
 {
-    private TraceEventDispatcherImpl dispatcher;
+    private TraceEventDispatcherExecutorImpl executor;
 
     @BeforeEach
     public void setUp()
     {
-        this.dispatcher = new TraceEventDispatcherImpl();
-        this.dispatcher.activate();
+        executor = new TraceEventDispatcherExecutorImpl();
     }
 
     @AfterEach
     public void tearDown()
     {
-        this.dispatcher.deactivate();
+        executor.deactivate();
     }
 
     @Test
-    public void testQueue()
-        throws Exception
+    void testQueue()
     {
+        Phaser phaser = new Phaser( 1 );
+
+        TraceEventDispatcherImpl dispatcher = new TraceEventDispatcherImpl( executor );
+        dispatcher.activate();
+
         final TraceListener listener = Mockito.mock( TraceListener.class );
-        this.dispatcher.addListener( listener );
+        dispatcher.addListener( listener );
+
+        // must be the last listener
+        dispatcher.addListener( event -> phaser.arrive() );
 
         final TraceEvent event = TraceEvent.start( null );
-        this.dispatcher.queue( event );
+        dispatcher.queue( event );
 
-        Thread.sleep( 100L );
-        Mockito.verify( listener, Mockito.times( 1 ) ).onTrace( event );
+        phaser.awaitAdvance( 0 );
 
-        this.dispatcher.removeListener( listener );
-        this.dispatcher.queue( event );
+        dispatcher.removeListener( listener );
+        dispatcher.queue( event );
 
-        Thread.sleep( 100L );
-        Mockito.verify( listener, Mockito.times( 1 ) ).onTrace( event );
+        phaser.awaitAdvance( 1 );
+
+        verify( listener, times( 1 ) ).onTrace( event );
+
+        dispatcher.deactivate();
     }
 }

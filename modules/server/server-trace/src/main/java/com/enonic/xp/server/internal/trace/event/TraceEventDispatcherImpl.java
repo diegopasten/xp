@@ -1,8 +1,7 @@
 package com.enonic.xp.server.internal.trace.event;
 
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.osgi.service.component.annotations.Activate;
@@ -17,25 +16,32 @@ import com.enonic.xp.trace.TraceListener;
 
 @Component
 public final class TraceEventDispatcherImpl
-    implements TraceEventDispatcher, Runnable
+    implements TraceEventDispatcher
 {
     private final TraceListeners listeners = new TraceListeners();
 
     private final BlockingQueue<TraceEvent> queue = new LinkedBlockingQueue<>();
 
-    private ExecutorService executor;
+    private final Executor executor;
+
+    private volatile boolean active = true;
+
+    @Activate
+    public TraceEventDispatcherImpl( @Reference(service = TraceEventDispatcherExecutor.class) final Executor executor )
+    {
+        this.executor = executor;
+    }
 
     @Activate
     public void activate()
     {
-        this.executor = Executors.newSingleThreadExecutor();
-        this.executor.execute( this );
+        this.executor.execute( this::run );
     }
 
     @Deactivate
     public void deactivate()
     {
-        this.executor.shutdown();
+        active = false;
     }
 
     @Override
@@ -44,14 +50,14 @@ public final class TraceEventDispatcherImpl
         this.queue.add( event );
     }
 
-    @Override
-    public void run()
+    private void run()
     {
-        while ( true )
+        while ( active )
         {
             try
             {
-                this.listeners.onTrace( this.queue.take() );
+                final TraceEvent event = this.queue.take();
+                this.listeners.onTrace( event );
             }
             catch ( final InterruptedException e )
             {

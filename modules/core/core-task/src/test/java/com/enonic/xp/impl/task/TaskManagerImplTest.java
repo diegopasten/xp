@@ -7,15 +7,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.google.common.util.concurrent.Uninterruptibles;
-
+import com.enonic.xp.core.internal.concurrent.RecurringJob;
 import com.enonic.xp.event.Event;
 import com.enonic.xp.task.RunnableTask;
 import com.enonic.xp.task.TaskId;
@@ -26,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class TaskManagerImplTest
 {
@@ -36,7 +36,7 @@ public class TaskManagerImplTest
     @BeforeEach
     public void setup()
     {
-        taskMan = new TaskManagerImpl();
+        taskMan = new TaskManagerImpl( Runnable::run, new TaskManagerCleanupSchedulerMock() );
         final AtomicInteger count = new AtomicInteger( 0 );
         taskMan.setIdGen( () -> TaskId.from( Integer.toString( count.incrementAndGet() ) ) );
 
@@ -52,7 +52,6 @@ public class TaskManagerImplTest
             {
                 progressReporter.progress( 1, 10 );
                 progressReporter.info( "Step " + i );
-                Uninterruptibles.sleepUninterruptibly( 500, TimeUnit.MILLISECONDS );
             }
         };
 
@@ -67,9 +66,8 @@ public class TaskManagerImplTest
         for ( int i = 0; i < 25; i++ )
         {
             final TaskInfo taskInfo = taskMan.getTaskInfo( taskId );
-            System.out.printf( "Task %s, details: %s\r\n", taskId.toString(), taskInfo.toString() );
+            System.out.printf( "Task %s, details: %s\r\n", taskId.toString(), taskInfo );
             System.out.flush();
-            Uninterruptibles.sleepUninterruptibly( 100, TimeUnit.MILLISECONDS );
         }
 
         assertEquals( 1, taskMan.getAllTasks().size() );
@@ -85,7 +83,6 @@ public class TaskManagerImplTest
     public void submitTaskWithError()
     {
         final RunnableTask runnableTask = ( id, progressReporter ) -> {
-            Uninterruptibles.sleepUninterruptibly( 500, TimeUnit.MILLISECONDS );
             throw new RuntimeException( "Some error" );
         };
 
@@ -96,8 +93,6 @@ public class TaskManagerImplTest
         final TaskId taskId = taskMan.submitTask( runnableTask, "task 1", "" );
 
         assertNotNull( taskMan.getTaskInfo( taskId ) );
-
-        Uninterruptibles.sleepUninterruptibly( 600, TimeUnit.MILLISECONDS );
 
         assertEquals( 1, taskMan.getAllTasks().size() );
         assertEquals( 0, taskMan.getRunningTasks().size() );
@@ -115,7 +110,6 @@ public class TaskManagerImplTest
 
         CountDownLatch latch = new CountDownLatch( 1 );
         RunnableTask runnableTask = ( id, progressReporter ) -> {
-            Uninterruptibles.sleepUninterruptibly( 100, TimeUnit.MILLISECONDS );
             latch.countDown();
         };
 
@@ -127,7 +121,6 @@ public class TaskManagerImplTest
         assertTrue( taskMan.getRunningTasks().size() <= 1 );
 
         latch.await();
-        Uninterruptibles.sleepUninterruptibly( 100, TimeUnit.MILLISECONDS );
 
         Instant laterTime = initTime.plus( TaskManagerImpl.KEEP_COMPLETED_MAX_TIME_SEC + 1, ChronoUnit.SECONDS );
         taskMan.setClock( Clock.fixed( laterTime, ZoneId.systemDefault() ) );
@@ -143,5 +136,32 @@ public class TaskManagerImplTest
     private String eventTypes()
     {
         return eventsPublished.stream().map( ( e ) -> e.getType() ).collect( Collectors.joining( " , " ) );
+    }
+
+    private static class TaskManagerCleanupSchedulerMock
+        implements TaskManagerCleanupScheduler
+    {
+        private Runnable command;
+
+        private RecurringJob scheduledFutureMock;
+
+        @Override
+        public RecurringJob scheduleWithFixedDelay( final Runnable command )
+        {
+            this.command = command;
+            command.run();
+            scheduledFutureMock = mock( RecurringJob.class );
+            return scheduledFutureMock;
+        }
+
+        public void rerun()
+        {
+            command.run();
+        }
+
+        public void verifyStopped()
+        {
+            verify( scheduledFutureMock ).cancel();
+        }
     }
 }
