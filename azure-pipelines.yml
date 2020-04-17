@@ -10,3 +10,4 @@ steps:
 - script: java --version
 - script: ls $(Pipeline.Workspace)
 - script: $(Pipeline.Workspace)/s/gradlew build --stacktrace
+- download: xp
